@@ -50,6 +50,9 @@ check("occupation is counted every way it's recorded, each lead once", s.occupat
 check("a lead with no stage is counted, not dropped", s.noStage === 1 && s.stages["No lead stage yet"] === 1);
 check("stage labels are HubSpot's, not the stored value", s.stages["Qualified CAN"] === 1);
 check("stage counts add up to every lead", Object.values(s.stages).reduce((a, b) => a + b, 0) === s.leads);
+check("the top two reasons are found, most common first", s.topReasons.length === 2 && s.topReasons[0].count >= s.topReasons[1].count);
+check("a top reason's share is of ineligible leads", s.topReasons[0].pct === Math.round((s.topReasons[0].count / s.inel) * 1000) / 10);
+check("with no reasons recorded, there are no top reasons", A.analyseSegment([lead("Ineligible")]).topReasons.length === 0);
 
 // ---- campaigns and consultants ----
 check("spacing differences don't split one campaign in two", A.campaignKey("(glb) usa uae campaign -new") === A.campaignKey("(glb) usa uae campaign - new"));
@@ -87,6 +90,10 @@ check("the email shows ineligible leads with no reason", /No reason recorded/.te
 check("the email says how it was counted", /How this was counted/.test(html));
 check("the email escapes text", !/<script/i.test(html));
 check("the email flags leads from an unnamed form", /unnamed lead ad form/.test(html));
+check("the headline gives the ineligible count", new RegExp(`<b>${s.inel}</b> \\(${s.inelPct}%\\) were Ineligible`).test(html));
+check("the headline names the top two reasons", /top two reasons for ineligibility/i.test(html));
+check("the month table compares the top two reasons", /Top two reasons for ineligibility/.test(html) && /1\. /.test(html) && /2\. /.test(html));
+check("the tiles show total leads and the ineligible count", /total GLB leads/.test(html) && />ineligible</.test(html));
 check("the email says both campaign and form are checked", /lead ad form \(First Conversion\)/.test(html));
 const csv = buildCsv([{ period: "Sep", createdText: "2026-09-10 15:00", name: 'Ali "AJ" Khan', campaignRaw: "(glb) x", stageLabel: "Ineligible", reasons: ["Over Age"], category: "Age Bracket", owner: "Ayesha", link: "https://x" }]);
 check("the CSV escapes quotes in names", csv.includes('"Ali ""AJ"" Khan"'));
