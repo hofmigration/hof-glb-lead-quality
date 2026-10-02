@@ -27,7 +27,12 @@ const fmt = (t) => new Date(t + OFF).toISOString().slice(0, 16).replace("T", " "
       seg.stats = A.analyseSegment(leads);
       leads.forEach((l) => all.push({ ...l, period: seg.label, createdText: fmt(l.created), link: hub.contactLink(l.id) }));
       const s = seg.stats;
-      console.log(`${seg.label.padEnd(24)} ${String(s.leads).padStart(6)} leads   occupation not listed ${String(s.onlPct).padStart(5)}%   ineligible ${String(s.inelPct).padStart(5)}%   no reason ${s.noReasonPct}% of ineligible`);
+      console.log(`\n${seg.label}`);
+      console.log(`  Total GLB leads        ${s.leads}`);
+      console.log(`  Ineligible             ${s.inel}  (${s.inelPct}% of leads)`);
+      console.log(`  Occupation Not Listed  ${s.onl}  (${s.onlPct}% of leads)`);
+      console.log(`  Top two reasons        ${s.topReasons.length ? s.topReasons.map((t, i) => `${i + 1}. ${t.reason} — ${t.count} (${t.pct}%)`).join("   ") : "none recorded"}`);
+      console.log(`  Ineligible, no reason  ${s.noReason}  (${s.noReasonPct}% of ineligible)`);
     }
 
     const camps = A.campaigns(all);
@@ -53,9 +58,11 @@ const fmt = (t) => new Date(t + OFF).toISOString().slice(0, 16).replace("T", " "
     fs.writeFileSync(path.join(SETTINGS.OUT_DIR, csvName), csv);
     console.log(`\nWrote report.html and ${csvName} — both are in this run's Artifacts.`);
 
-    if (!SETTINGS.SEND_EMAIL) { console.log("Not emailed (send_email is false)."); return; }
+    if (!SETTINGS.SEND_EMAIL) { console.log("Not emailed — this run had send_email set to false. Run it again with send_email = true to get the email."); return; }
+    if (!process.env.RESEND_KEY) { console.log("!! Not emailed — there is no RESEND_KEY secret in this repo. Add it under Settings → Secrets and variables → Actions."); process.exitCode = 1; return; }
     const last = period.segments[period.segments.length - 1].stats;
-    const ok = await sendEmail(`GLB lead quality — ${tag}: ${last.onlPct}% occupation not listed, ${last.inelPct}% ineligible`, html, csvName, csv);
+    const top = last.topReasons[0] ? `, top reason ${last.topReasons[0].reason}` : "";
+    const ok = await sendEmail(`GLB lead quality — ${tag}: ${last.leads} leads, ${last.inel} ineligible (${last.inelPct}%)${top}`, html, csvName, csv);
     if (ok) console.log(`Emailed to ${SETTINGS.REPORT_TO}.`);
     else { console.log("!! Not emailed. The report is still in Artifacts."); process.exitCode = 1; }
   } catch (e) {
