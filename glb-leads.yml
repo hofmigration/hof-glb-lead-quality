@@ -1,0 +1,63 @@
+name: GLB lead quality
+
+on:
+  schedule:
+    # 04:00 UTC on the 1st = 9:00 AM PKT. With no inputs it covers the last 3 full months.
+    - cron: "0 4 1 * *"
+  workflow_dispatch:
+    inputs:
+      period:
+        description: "Which months to compare"
+        required: true
+        type: choice
+        default: "last 2 months"
+        options:
+          - "previous month"
+          - "last 2 months"
+          - "last 3 months"
+          - "last 6 months"
+          - "this month so far"
+          - "custom"
+      from_date:
+        description: "Custom only — from date, YYYY-MM-DD"
+        required: false
+        default: ""
+        type: string
+      to_date:
+        description: "Custom only — to date, YYYY-MM-DD"
+        required: false
+        default: ""
+        type: string
+      send_email:
+        description: "Email the report?"
+        required: true
+        type: choice
+        default: "true"
+        options: ["true", "false"]
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Check the counting rules still work
+        run: node selftest.js
+      - run: node report.js
+        env:
+          HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
+          RESEND_KEY: ${{ secrets.RESEND_KEY }}
+          PERIOD: ${{ inputs.period }}
+          FROM_DATE: ${{ inputs.from_date }}
+          TO_DATE: ${{ inputs.to_date }}
+          SEND_EMAIL: ${{ inputs.send_email }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: glb-lead-quality
+          path: out/
+          retention-days: 30
+          if-no-files-found: ignore
