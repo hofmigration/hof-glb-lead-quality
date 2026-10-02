@@ -65,8 +65,11 @@ function analyseSegment(leads) {
   ]);
 
   const untitled = leads.filter((l) => l.untitledForm).length;
+  // the two most common detailed reasons, with their share of ineligible leads
+  const topReasons = Object.entries(reasons).sort((a, b) => b[1] - a[1]).slice(0, 2)
+    .map(([reason, count]) => ({ reason, count, pct: pct(count, inel.length) }));
   return {
-    untitled,
+    untitled, topReasons,
     leads: n,
     onl: onl.length, onlPct: pct(onl.length, n),
     inel: inel.length, inelPct: pct(inel.length, n),
