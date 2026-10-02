@@ -43,7 +43,11 @@ function buildEmail(r) {
   const move = (d) => d == null ? "" : d === 0 ? " (no change)" : ` (${d > 0 ? "up" : "down"} ${Math.abs(d)} pts${vs})`;
   const topReason = Object.entries(last.reasons).sort((a, b) => b[1] - a[1])[0];
 
-  const tile = (v, l, fg, bg) => `<td width="25%" align="center" style="background:${bg};border-radius:6px;padding:13px 6px"><div style="font:700 22px/1 ${F};color:${fg}">${esc(v)}</div><div style="font:600 9.5px/1.3 ${F};letter-spacing:.06em;text-transform:uppercase;color:${fg};margin-top:6px">${esc(l)}</div></td>`;
+  const tile = (v, l, fg, bg, sub) => `<td width="25%" align="center" style="background:${bg};border-radius:6px;padding:13px 6px"><div style="font:700 22px/1 ${F};color:${fg}">${esc(v)}</div>${sub ? `<div style="font:600 11.5px/1.3 ${F};color:${fg};margin-top:4px;opacity:.85">${esc(sub)}</div>` : ""}<div style="font:600 9.5px/1.3 ${F};letter-spacing:.06em;text-transform:uppercase;color:${fg};margin-top:6px">${esc(l)}</div></td>`;
+  // "Less Work Experience (41%) and Over Age (18%)"
+  const twoReasons = (st) => st.topReasons.length
+    ? st.topReasons.map((t) => `<b>${esc(t.reason)}</b> (${t.pct}%)`).join(" and ")
+    : "";
 
   // ---- month by month ----
   const prevOf = (i) => (i > 0 ? S[i - 1] : null);
@@ -55,6 +59,10 @@ function buildEmail(r) {
     rateRow("Ineligible <span style=\"color:" + C.soft + "\">(lead stage)</span>", "inel", "inelPct"),
     rateRow("Occupation, every way it's recorded", "occupationAll", "occupationAllPct"),
     { label: "No lead stage yet", cells: S.map((s) => cell(s.noStage, pct(s.noStage, s.leads))) },
+    { label: "<b>Top two reasons for ineligibility</b> <span style=\"color:" + C.soft + "\">(share of ineligible)</span>",
+      cells: S.map((s) => s.topReasons.length
+        ? s.topReasons.map((t, i) => `<div style="${i ? "margin-top:4px;" : ""}text-align:right">${i + 1}. ${esc(t.reason)} <span style="color:${C.soft}">(${t.pct}%)</span></div>`).join("")
+        : `<span style="color:${C.soft}">none recorded</span>`) },
   ];
 
   // ---- reasons ----
@@ -101,16 +109,16 @@ function buildEmail(r) {
 <tr><td style="padding:22px 26px">
 
   <table role="presentation" width="100%" style="margin:0 0 16px"><tr><td style="background:${C.panel};border-left:4px solid ${C.royal};padding:13px 16px;font:400 14px/1.65 ${F};color:${C.ink}">
-    In <b>${esc(lastSeg.label)}</b>, ${num(last.leads)} GLB leads came in. <b>${last.onlPct}%</b> were Occupation Not Listed${move(dOnl)}, and <b>${last.inelPct}%</b> were Ineligible${move(dInel)}.
-    ${topReason ? `The most common reason for ineligibility was <b>${esc(topReason[0])}</b>.` : ""}
+    In <b>${esc(lastSeg.label)}</b>, <b>${num(last.leads)}</b> GLB leads came in. <b>${num(last.inel)}</b> (${last.inelPct}%) were Ineligible${move(dInel)}, and <b>${num(last.onl)}</b> (${last.onlPct}%) were Occupation Not Listed${move(dOnl)}.
+    ${last.topReasons.length ? `The top ${last.topReasons.length === 2 ? "two reasons" : "reason"} for ineligibility: ${twoReasons(last)}.` : ""}
     ${last.noReason ? `<span style="color:${C.bad}"><b>${last.noReasonPct}%</b> of ineligible leads have no reason recorded.</span>` : ""}
   </td></tr></table>
 
   <table role="presentation" width="100%" cellspacing="8" style="margin:0 -8px"><tr>
-    ${tile(num(last.leads), "GLB leads", C.navy, C.panel)}
-    ${tile(last.onlPct + "%", "occupation not listed", C.warn, C.warnbg)}
-    ${tile(last.inelPct + "%", "ineligible", C.bad, C.badbg)}
-    ${tile(last.noReasonPct + "%", "ineligible, no reason", last.noReason ? C.bad : C.good, last.noReason ? C.badbg : C.goodbg)}
+    ${tile(num(last.leads), "total GLB leads", C.navy, C.panel)}
+    ${tile(num(last.inel), "ineligible", C.bad, C.badbg, last.inelPct + "% of leads")}
+    ${tile(num(last.onl), "occupation not listed", C.warn, C.warnbg, last.onlPct + "% of leads")}
+    ${tile(num(last.noReason), "ineligible, no reason", last.noReason ? C.bad : C.good, last.noReason ? C.badbg : C.goodbg, last.noReasonPct + "% of ineligible")}
   </tr></table>
 
   ${heading("Month by month", `Percentages are of that period's GLB leads. Arrows show the change on the period before; for every rate here, up is worse.${partial ? " Part-months are labelled with their dates — compare their percentages and leads per day, not their totals." : ""}`)}
